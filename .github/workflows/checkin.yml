@@ -1,26 +1,45 @@
+# 工作流名称
 name: Checkin
+
+# 触发条件
 on:
   schedule:
-    - cron: "45 02 * * *"
+    # 设置一个定时任务，每小时的第45分钟触发工作流
+    - cron: "45 * * * *"
+  # 允许手动触发工作流
   workflow_dispatch:
 
 jobs:
+  # 任务定义
   sync_with_upstream:
+    # 使用最新版本的Ubuntu虚拟环境
     runs-on: ubuntu-latest
+    # 任务名称
     name: auto checkin for traffic
 
     steps:
+      # 第一步：检出代码仓库
       - name: Checkout
+        # 使用actions/checkout@v4动作来检出代码仓库
         uses: actions/checkout@v4
         with:
-          ref: master
+          # 检出master分支
+          ref: main
 
+      # 第二步：设置Python环境
       - name: Checkin
+        # 使用actions/setup-python@v5动作来设置Python环境
         uses: actions/setup-python@v5
         with:
+          # 使用Python 3.x版本
           python-version: "3.x"
+          # 使用x64架构
           architecture: "x64"
+
+      # 第三步：运行Python脚本
       - run: python ./.github/actions/checkin/universal.py
 
+      # 第四步：输出当前时间
       - name: Timestamp
+        # 运行Unix命令date，输出当前时间
         run: date
