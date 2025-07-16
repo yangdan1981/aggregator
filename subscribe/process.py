@@ -480,7 +480,8 @@ def assign(
                 continue
 
             # get the first conversion configuration for each group
-            config = pc.storage.get("items", {}).get(targets.values()[0], {})
+            values = list(targets.values())
+            config = pc.storage.get("items", {}).get(values[0], {})
             subscribe = pushtool.raw_url(config=config)
             if k not in groups or not subscribe:
                 continue
@@ -635,6 +636,7 @@ def aggregate(args: argparse.Namespace) -> None:
         regularize = group_conf.get("regularize", {})
         if regularize and isinstance(regularize, dict) and regularize.get("enable", False):
             locate = regularize.get("locate", False)
+            residential = regularize.get("residential", False)
             try:
                 bits = max(1, int(regularize.get("bits", 2)))
             except:
@@ -645,6 +647,7 @@ def aggregate(args: argparse.Namespace) -> None:
                 num_threads=args.num,
                 show_progress=display,
                 locate=locate,
+                residential=residential,
                 digits=bits,
             )
 

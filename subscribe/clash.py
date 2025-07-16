@@ -4,6 +4,7 @@
 # @Time    : 2022-07-15
 
 import base64
+import ipaddress
 import itertools
 import json
 import os
@@ -19,6 +20,7 @@ from collections import defaultdict
 import executable
 import utils
 import yaml
+from logger import logger
 
 CTX = ssl.create_default_context()
 CTX.check_hostname = False
@@ -303,6 +305,11 @@ def verify(item: dict, mihomo: bool = True) -> bool:
         server = str(item.get("server", "")).strip().lower()
         if not server:
             return False
+
+        if server.startswith("::"):
+            # ipv6 addresses starting with ":::" cause yaml loading errors, need to expand to full format
+            server = ipaddress.IPv6Address(server).exploded
+
         item["server"] = server
 
         # port must be valid port number
@@ -676,6 +683,7 @@ def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, st
     try:
         proxy_name = urllib.parse.quote(proxy.get("name", ""), safe="")
     except:
+        logger.debug(f"encoding proxy name error, proxy: {proxy.get('name', '')}")
         return False
 
     base_url = f"http://{api_url}/proxies/{proxy_name}/delay?timeout={str(timeout)}&url="
@@ -690,10 +698,16 @@ def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, st
         targets.append(random.choice(DOWNLOAD_URL))
     try:
         alive, allowed = True, False
+        trace = os.getenv("FOOL_PROOF", "").lower() in ["true", "1"]
+
+        if trace:
+            # prevents liveness check from being terminated due to a long period of time with no output
+            logger.info(f"start liveness check, proxy: {proxy.get('name', '')}")
+
         for target in targets:
             target = urllib.parse.quote(target)
             url = f"{base_url}{target}"
-            content = utils.http_get(url=url, retry=2, interval=interval)
+            content = utils.http_get(url=url, retry=2, interval=interval, trace=trace)
             try:
                 data = json.loads(content)
             except:
@@ -729,10 +743,11 @@ def check(proxy: dict, api_url: str, timeout: int, test_url: str, delay: int, st
                         if data.get("delay", -1) > 0:
                             proxy["name"] = f"{proxy_name}{utils.CHATGPT_FLAG}"
                 except Exception:
-                    pass
+                    logger.debug(f"check for OpenAI failed, proxy: {proxy.get('name')}, message: {str(e)}")
 
         return alive
-    except:
+    except Exception as e:
+        logger.debug(f"check failed, proxy: {proxy.get('name')}, message: {str(e)}")
         return False
 
 
